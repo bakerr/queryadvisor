@@ -2,7 +2,7 @@
 
 # Load .env if it exists (provides MSSQL_SA_PASSWORD etc.)
 -include .env
-export
+export MSSQL_SA_PASSWORD SQL_SERVER_HOST SQL_AUTH_METHOD ODBC_DRIVER
 
 DB_COMPOSE := podman-compose -f compose.yaml
 
@@ -20,8 +20,9 @@ db-logs: ## Tail SQL Server container logs
 	$(DB_COMPOSE) logs -f sqlserver
 
 db-shell: ## Open a sqlcmd session against the running container
-	$(DB_COMPOSE) exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
-		-S localhost -U sa -P "$(MSSQL_SA_PASSWORD)" -C
+	SQLCMDPASSWORD="$(MSSQL_SA_PASSWORD)" \
+	$(DB_COMPOSE) exec -e SQLCMDPASSWORD sqlserver \
+		/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C
 
 db-reset: ## DESTRUCTIVE: stop container and wipe all data in ~/.queryadvisor/sqlserver
 	@printf "WARNING: This will permanently delete all SQL Server data.\nPress Ctrl-C to abort, or Enter to continue: "; read _confirm
