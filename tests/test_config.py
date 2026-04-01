@@ -1,6 +1,8 @@
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from app.config import build_connection_string
 
 
