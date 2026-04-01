@@ -55,7 +55,7 @@ This guide sets up a local SQL Server 2022 instance for development using Podman
 | `make db-status` | Show container health |
 | `make db-logs` | Tail SQL Server logs |
 | `make db-shell` | Open sqlcmd session |
-| `make db-reset` | **DESTRUCTIVE** — wipe all data and restart |
+| `make db-reset` | **DESTRUCTIVE** — prompts for confirmation, then wipes all data and restarts |
 
 ## Data Persistence
 
@@ -75,6 +75,7 @@ Or export the env vars in your shell session:
 ```bash
 export SQL_AUTH_METHOD=sql
 export MSSQL_SA_PASSWORD=YourStr0ng!Pass
+export ODBC_DRIVER="ODBC Driver 18 for SQL Server"
 uvicorn app.main:app --reload
 ```
 
