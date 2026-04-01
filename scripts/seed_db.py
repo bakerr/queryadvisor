@@ -312,7 +312,7 @@ def _rand_str(rng: random.Random, n: int) -> str:
 
 
 def _is_empty(cursor, table: str) -> bool:
-    cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608 — hardcoded literal
+    cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608 — all callers pass string literals; no user input reaches here
     return cursor.fetchone()[0] == 0
 
 
@@ -380,11 +380,17 @@ def _populate_orders(cursor) -> None:
 def _populate_order_items(cursor) -> None:
     if not _is_empty(cursor, "dbo.OrderItems"):
         return
+    cursor.execute("SELECT MAX(OrderID) FROM dbo.Orders")
+    max_order_id = cursor.fetchone()[0] or 0
+    cursor.execute("SELECT MAX(ProductID) FROM dbo.Products")
+    max_product_id = cursor.fetchone()[0] or 0
+    if max_order_id == 0 or max_product_id == 0:
+        return
     rng = random.Random(45)
     rows = [
         (
-            rng.randint(1, 2000),
-            rng.randint(1, 50),
+            rng.randint(1, max_order_id),
+            rng.randint(1, max_product_id),
             rng.randint(1, 5),
             round(rng.uniform(9.99, 499.99), 2),
         )
