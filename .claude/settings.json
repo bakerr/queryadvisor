@@ -1,0 +1,29 @@
+{
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  },
+  "version": "1.0.0",
+  "project": {
+    "type": "development",
+    "framework": "",
+    "language": "",
+    "description": ""
+  },
+  "ai_guidelines": {
+    "code_style": "Clean, readable, well-documented code with meaningful variable names",
+    "testing": "Comprehensive unit tests for all new functionality",
+    "documentation": "Clear inline comments and updated README sections",
+    "git_commits": "Atomic commits with descriptive messages following conventional commits",
+    "security": "Follow OWASP guidelines and security best practices"
+  },
+  "context_preservation": {
+    "session_logs": true,
+    "auto_backup": true,
+    "context_window": "large"
+  },
+  "validation": {
+    "pre_commit": true,
+    "test_before_commit": true,
+    "lint_check": true
+  }
+}
