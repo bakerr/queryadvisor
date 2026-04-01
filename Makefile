@@ -1,4 +1,4 @@
-.PHONY: db-start db-stop db-status db-logs db-shell db-reset
+.PHONY: db-start db-stop db-status db-logs db-shell db-reset help
 
 # Load .env if it exists (provides MSSQL_SA_PASSWORD etc.)
 -include .env
@@ -24,6 +24,7 @@ db-shell: ## Open a sqlcmd session against the running container
 		-S localhost -U sa -P "$(MSSQL_SA_PASSWORD)" -C
 
 db-reset: ## DESTRUCTIVE: stop container and wipe all data in ~/.queryadvisor/sqlserver
+	@printf "WARNING: This will permanently delete all SQL Server data.\nPress Ctrl-C to abort, or Enter to continue: "; read _confirm
 	$(DB_COMPOSE) down
 	rm -rf $(HOME)/.queryadvisor/sqlserver
 	mkdir -p $(HOME)/.queryadvisor/sqlserver
