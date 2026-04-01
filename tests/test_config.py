@@ -67,3 +67,13 @@ def test_custom_driver_is_used():
     with patch.dict(os.environ, env, clear=True):
         conn_str = build_connection_string("mydb")
     assert "ODBC Driver 17 for SQL Server" in conn_str
+
+
+def test_unknown_auth_method_falls_back_to_windows():
+    """Unrecognized SQL_AUTH_METHOD falls back to Trusted_Connection."""
+    env = {"SQL_AUTH_METHOD": "kerberos", "SQL_SERVER_HOST": "localhost",
+           "ODBC_DRIVER": "ODBC Driver 18 for SQL Server"}
+    with patch.dict(os.environ, env, clear=True):
+        conn_str = build_connection_string("mydb")
+    assert "Trusted_Connection=yes" in conn_str
+    assert "PWD=" not in conn_str
