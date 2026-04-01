@@ -163,3 +163,72 @@ def _create_dbo_tables(cursor) -> None:
     """Execute all dbo schema DDL statements."""
     for stmt in _DBO_DDL:
         cursor.execute(stmt)
+
+
+# ---------------------------------------------------------------------------
+# bad schema DDL — deliberate anti-patterns to exercise analysis rules
+# ---------------------------------------------------------------------------
+
+_DDL_BAD_SCHEMA = (
+    "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'bad') "
+    "EXEC('CREATE SCHEMA bad')"
+)
+
+# DELIBERATE: CustomerID is varchar(20), not int.
+# Joining bad.Orders to dbo.Customers on CustomerID triggers check_join_type_mismatch.
+_DDL_BAD_ORDERS = """
+IF OBJECT_ID('bad.Orders', 'U') IS NULL
+CREATE TABLE bad.Orders (
+    OrderID      int            NOT NULL IDENTITY(1,1),
+    CustomerID   varchar(20)    NOT NULL,
+    OrderDate    datetime2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    TotalAmount  decimal(10,2)  NOT NULL DEFAULT 0,
+    CONSTRAINT PK_BadOrders PRIMARY KEY CLUSTERED (OrderID)
+)"""
+
+# DELIBERATE: No non-clustered indexes on UserID or EventType.
+# Querying bad.Events WHERE UserID = ? triggers check_table_scan
+# and check_join_column_not_indexed.
+_DDL_BAD_EVENTS = """
+IF OBJECT_ID('bad.Events', 'U') IS NULL
+CREATE TABLE bad.Events (
+    EventID     int          NOT NULL IDENTITY(1,1),
+    UserID      int          NOT NULL,
+    EventType   varchar(50)  NOT NULL,
+    OccurredAt  datetime2    NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_BadEvents PRIMARY KEY CLUSTERED (EventID)
+)"""
+
+# DELIBERATE: Index covers LogLevel for WHERE, but does not INCLUDE Message or CreatedAt.
+# A SELECT LogLevel, Message, CreatedAt FROM bad.Logs WHERE LogLevel = ?
+# triggers check_non_covering_index.
+_DDL_BAD_LOGS = """
+IF OBJECT_ID('bad.Logs', 'U') IS NULL
+CREATE TABLE bad.Logs (
+    LogID      int            NOT NULL IDENTITY(1,1),
+    LogLevel   varchar(20)    NOT NULL,
+    Message    nvarchar(max)  NOT NULL,
+    CreatedAt  datetime2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_BadLogs PRIMARY KEY CLUSTERED (LogID)
+)"""
+
+_DDL_BAD_LOGS_IDX = """
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_Logs_LogLevel' AND object_id = OBJECT_ID('bad.Logs')
+)
+CREATE INDEX IX_Logs_LogLevel ON bad.Logs (LogLevel)"""
+
+_BAD_DDL = [
+    _DDL_BAD_SCHEMA,
+    _DDL_BAD_ORDERS,
+    _DDL_BAD_EVENTS,
+    _DDL_BAD_LOGS,
+    _DDL_BAD_LOGS_IDX,
+]
+
+
+def _create_bad_tables(cursor) -> None:
+    """Execute all bad schema DDL statements."""
+    for stmt in _BAD_DDL:
+        cursor.execute(stmt)

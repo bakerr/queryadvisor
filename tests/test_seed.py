@@ -106,3 +106,51 @@ class TestCreateDboTables:
                 assert "IF OBJECT_ID" in stmt, (
                     f"CREATE TABLE statement missing IF OBJECT_ID guard:\n{stmt[:120]}"
                 )
+
+
+class TestCreateBadTables:
+    def _all_sql(self, mock_cursor) -> str:
+        from scripts.seed_db import _create_bad_tables
+        _create_bad_tables(mock_cursor)
+        return " ".join(call[0][0] for call in mock_cursor.execute.call_args_list)
+
+    def test_bad_schema_created(self):
+        cursor = MagicMock()
+        sql = self._all_sql(cursor)
+        assert "CREATE SCHEMA bad" in sql
+
+    def test_bad_orders_table_created(self):
+        cursor = MagicMock()
+        sql = self._all_sql(cursor)
+        assert "bad.Orders" in sql
+
+    def test_bad_orders_customerid_is_varchar(self):
+        """CustomerID must be varchar to trigger check_join_type_mismatch."""
+        from scripts.seed_db import _DDL_BAD_ORDERS
+        assert "CustomerID" in _DDL_BAD_ORDERS
+        lines = _DDL_BAD_ORDERS.splitlines()
+        customerid_line = next(
+            (line for line in lines if "CustomerID" in line and "CONSTRAINT" not in line), ""
+        )
+        assert "varchar" in customerid_line.lower(), (
+            "bad.Orders.CustomerID must be varchar to trigger type mismatch rule"
+        )
+
+    def test_bad_events_has_no_nonclustered_index(self):
+        """bad.Events must have NO CREATE INDEX — triggers table scan rule."""
+        from scripts.seed_db import _BAD_DDL
+        events_index_stmts = [
+            s for s in _BAD_DDL
+            if "Events" in s and "CREATE INDEX" in s
+        ]
+        assert not events_index_stmts, (
+            "bad.Events must have no non-clustered indexes to trigger table scan rule"
+        )
+
+    def test_bad_logs_has_partial_index_without_include(self):
+        """bad.Logs index must NOT use INCLUDE — triggers non-covering index rule."""
+        from scripts.seed_db import _DDL_BAD_LOGS_IDX
+        assert "IX_Logs_LogLevel" in _DDL_BAD_LOGS_IDX
+        assert "INCLUDE" not in _DDL_BAD_LOGS_IDX, (
+            "bad.Logs index must not have INCLUDE clause to trigger non-covering index rule"
+        )
