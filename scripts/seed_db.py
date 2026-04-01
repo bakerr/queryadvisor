@@ -8,9 +8,9 @@ Usage:
 """
 from __future__ import annotations
 
-import random  # noqa: F401
-import string  # noqa: F401
-from datetime import datetime, timedelta  # noqa: F401
+import random
+import string
+from datetime import datetime, timedelta
 
 from app.config import get_connection
 
@@ -232,3 +232,250 @@ def _create_bad_tables(cursor) -> None:
     """Execute all bad schema DDL statements."""
     for stmt in _BAD_DDL:
         cursor.execute(stmt)
+
+
+# ---------------------------------------------------------------------------
+# Views and functions DDL
+# ---------------------------------------------------------------------------
+
+_DDL_VIEW_PRODUCT_CATALOG = """\
+CREATE OR ALTER VIEW dbo.vw_ProductCatalog AS
+SELECT
+    p.ProductID,
+    p.Name        AS ProductName,
+    p.Price,
+    p.Stock,
+    c.Name        AS CategoryName
+FROM dbo.Products p
+JOIN dbo.Categories c ON p.CategoryID = c.CategoryID"""
+
+_DDL_VIEW_ORDER_SUMMARY = """\
+CREATE OR ALTER VIEW dbo.vw_OrderSummary AS
+SELECT
+    o.OrderID,
+    o.OrderDate,
+    o.Status,
+    c.Name    AS CustomerName,
+    c.Email   AS CustomerEmail,
+    COUNT(oi.OrderItemID)           AS ItemCount,
+    SUM(oi.Quantity * oi.UnitPrice) AS TotalValue
+FROM dbo.Orders o
+JOIN dbo.Customers  c  ON o.CustomerID = c.CustomerID
+JOIN dbo.OrderItems oi ON o.OrderID    = oi.OrderID
+GROUP BY o.OrderID, o.OrderDate, o.Status, c.Name, c.Email"""
+
+_DDL_FN_ORDER_COUNT = """\
+CREATE OR ALTER FUNCTION dbo.fn_GetCustomerOrderCount(@CustomerID int)
+RETURNS int
+AS
+BEGIN
+    DECLARE @count int;
+    SELECT @count = COUNT(*) FROM dbo.Orders WHERE CustomerID = @CustomerID;
+    RETURN @count;
+END"""
+
+_DDL_FN_ORDER_ITEMS = """\
+CREATE OR ALTER FUNCTION dbo.fn_GetOrderItems(@OrderID int)
+RETURNS TABLE
+AS
+RETURN (
+    SELECT
+        oi.OrderItemID,
+        oi.Quantity,
+        oi.UnitPrice,
+        p.Name                     AS ProductName,
+        oi.Quantity * oi.UnitPrice AS LineTotal
+    FROM dbo.OrderItems oi
+    JOIN dbo.Products p ON oi.ProductID = p.ProductID
+    WHERE oi.OrderID = @OrderID
+)"""
+
+_VIEW_AND_FUNCTION_DDL = [
+    _DDL_VIEW_PRODUCT_CATALOG,
+    _DDL_VIEW_ORDER_SUMMARY,
+    _DDL_FN_ORDER_COUNT,
+    _DDL_FN_ORDER_ITEMS,
+]
+
+
+def _create_views_and_functions(cursor) -> None:
+    for stmt in _VIEW_AND_FUNCTION_DDL:
+        cursor.execute(stmt)
+
+
+# ---------------------------------------------------------------------------
+# Data population helpers
+# ---------------------------------------------------------------------------
+
+def _rand_str(rng: random.Random, n: int) -> str:
+    return "".join(rng.choices(string.ascii_lowercase, k=n))
+
+
+def _is_empty(cursor, table: str) -> bool:
+    cursor.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608 — hardcoded literal
+    return cursor.fetchone()[0] == 0
+
+
+def _populate_categories(cursor) -> None:
+    if not _is_empty(cursor, "dbo.Categories"):
+        return
+    names = [
+        "Electronics", "Clothing", "Books", "Sports", "Home & Garden",
+        "Toys", "Food & Beverage", "Automotive", "Health & Beauty", "Office",
+    ]
+    cursor.executemany("INSERT INTO dbo.Categories (Name) VALUES (?)", [(n,) for n in names])
+
+
+def _populate_customers(cursor) -> None:
+    if not _is_empty(cursor, "dbo.Customers"):
+        return
+    rng = random.Random(42)
+    base = datetime(2020, 1, 1)
+    rows = [
+        (
+            f"{_rand_str(rng, 6)}.{_rand_str(rng, 4)}@example.com",
+            f"{_rand_str(rng, 5).title()} {_rand_str(rng, 7).title()}",
+            base + timedelta(days=rng.randint(0, 1500)),
+        )
+        for _ in range(500)
+    ]
+    cursor.executemany(
+        "INSERT INTO dbo.Customers (Email, Name, CreatedAt) VALUES (?, ?, ?)", rows
+    )
+
+
+def _populate_products(cursor) -> None:
+    if not _is_empty(cursor, "dbo.Products"):
+        return
+    rng = random.Random(43)
+    rows = [
+        (
+            rng.randint(1, 10),
+            f"Product {i:03d}",
+            round(rng.uniform(9.99, 999.99), 2),
+            rng.randint(0, 100),
+        )
+        for i in range(1, 51)
+    ]
+    cursor.executemany(
+        "INSERT INTO dbo.Products (CategoryID, Name, Price, Stock) VALUES (?, ?, ?, ?)", rows
+    )
+
+
+def _populate_orders(cursor) -> None:
+    if not _is_empty(cursor, "dbo.Orders"):
+        return
+    rng = random.Random(44)
+    base = datetime(2023, 1, 1)
+    statuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+    rows = [
+        (rng.randint(1, 500), base + timedelta(days=rng.randint(0, 365)), rng.choice(statuses))
+        for _ in range(2000)
+    ]
+    cursor.executemany(
+        "INSERT INTO dbo.Orders (CustomerID, OrderDate, Status) VALUES (?, ?, ?)", rows
+    )
+
+
+def _populate_order_items(cursor) -> None:
+    if not _is_empty(cursor, "dbo.OrderItems"):
+        return
+    rng = random.Random(45)
+    rows = [
+        (
+            rng.randint(1, 2000),
+            rng.randint(1, 50),
+            rng.randint(1, 5),
+            round(rng.uniform(9.99, 499.99), 2),
+        )
+        for _ in range(5000)
+    ]
+    cursor.executemany(
+        "INSERT INTO dbo.OrderItems (OrderID, ProductID, Quantity, UnitPrice) VALUES (?, ?, ?, ?)",
+        rows,
+    )
+
+
+def _populate_bad_orders(cursor) -> None:
+    if not _is_empty(cursor, "bad.Orders"):
+        return
+    rng = random.Random(46)
+    base = datetime(2023, 1, 1)
+    rows = [
+        (
+            str(rng.randint(1, 500)),
+            base + timedelta(days=rng.randint(0, 365)),
+            round(rng.uniform(10.0, 500.0), 2),
+        )
+        for _ in range(1000)
+    ]
+    cursor.executemany(
+        "INSERT INTO bad.Orders (CustomerID, OrderDate, TotalAmount) VALUES (?, ?, ?)", rows
+    )
+
+
+def _populate_bad_events(cursor) -> None:
+    if not _is_empty(cursor, "bad.Events"):
+        return
+    rng = random.Random(47)
+    base = datetime(2023, 1, 1)
+    types = ["click", "view", "purchase", "login", "logout"]
+    rows = [
+        (rng.randint(1, 500), rng.choice(types), base + timedelta(days=rng.randint(0, 365)))
+        for _ in range(1000)
+    ]
+    cursor.executemany(
+        "INSERT INTO bad.Events (UserID, EventType, OccurredAt) VALUES (?, ?, ?)", rows
+    )
+
+
+def _populate_bad_logs(cursor) -> None:
+    if not _is_empty(cursor, "bad.Logs"):
+        return
+    rng = random.Random(48)
+    base = datetime(2023, 1, 1)
+    levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    rows = [
+        (
+            rng.choice(levels),
+            f"Log message {i}: " + "".join(rng.choices(string.ascii_letters, k=50)),
+            base + timedelta(days=rng.randint(0, 365)),
+        )
+        for i in range(1000)
+    ]
+    cursor.executemany(
+        "INSERT INTO bad.Logs (LogLevel, Message, CreatedAt) VALUES (?, ?, ?)", rows
+    )
+
+
+# ---------------------------------------------------------------------------
+# Orchestration — connects to QueryAdvisorSample
+# ---------------------------------------------------------------------------
+
+def seed_schema() -> None:
+    """Create all schema objects and populate data in QueryAdvisorSample."""
+    conn = get_connection(DB_NAME)
+    conn.autocommit = True
+    try:
+        cur = conn.cursor()
+        _create_dbo_tables(cur)
+        _create_bad_tables(cur)
+        _create_views_and_functions(cur)
+        _populate_categories(cur)
+        _populate_customers(cur)
+        _populate_products(cur)
+        _populate_orders(cur)
+        _populate_order_items(cur)
+        _populate_bad_orders(cur)
+        _populate_bad_events(cur)
+        _populate_bad_logs(cur)
+        print("  schema and data ready")
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    print(f"Seeding {DB_NAME}...")
+    create_database()
+    seed_schema()
+    print("Done.")

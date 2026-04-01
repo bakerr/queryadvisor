@@ -154,3 +154,31 @@ class TestCreateBadTables:
         assert "INCLUDE" not in _DDL_BAD_LOGS_IDX, (
             "bad.Logs index must not have INCLUDE clause to trigger non-covering index rule"
         )
+
+
+class TestSeedSchema:
+    def test_connects_to_sample_db(self, mock_conn):
+        with patch("scripts.seed_db.get_connection", return_value=mock_conn) as mock_get:
+            from scripts.seed_db import seed_schema
+            seed_schema()
+        mock_get.assert_called_once_with("QueryAdvisorSample")
+
+    def test_sets_autocommit(self, mock_conn):
+        with patch("scripts.seed_db.get_connection", return_value=mock_conn):
+            from scripts.seed_db import seed_schema
+            seed_schema()
+        assert mock_conn.autocommit is True
+
+    def test_closes_connection_on_success(self, mock_conn):
+        with patch("scripts.seed_db.get_connection", return_value=mock_conn):
+            from scripts.seed_db import seed_schema
+            seed_schema()
+        mock_conn.close.assert_called_once()
+
+    def test_closes_connection_on_exception(self, mock_conn):
+        mock_conn.cursor.return_value.execute.side_effect = RuntimeError("db error")
+        with patch("scripts.seed_db.get_connection", return_value=mock_conn):
+            from scripts.seed_db import seed_schema
+            with pytest.raises(RuntimeError):
+                seed_schema()
+        mock_conn.close.assert_called_once()
