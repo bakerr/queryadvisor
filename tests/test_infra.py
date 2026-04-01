@@ -53,7 +53,7 @@ def test_compose_sqlcmdpassword_env_set():
 
 
 def test_seed_script_uses_get_connection():
-    """seed_db.py must import from app.config, not hardcode credentials."""
+    """Regression guard: seed_db.py must use app.config, not inline credentials."""
     script = (ROOT / "scripts" / "seed_db.py").read_text()
     assert "from app.config import get_connection" in script, (
         "seed_db.py must use app.config.get_connection, not build its own connection"
