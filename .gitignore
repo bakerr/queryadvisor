@@ -33,9 +33,15 @@ npm-debug.log*
 scripts/logs/
 scripts/ai_feedback/*.log
 
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
 # Cursor IDE
 .cursor/
 .cursorignore
+.cursorrules
 
 # Git worktrees
 .worktrees/

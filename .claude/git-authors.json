@@ -1,0 +1,12 @@
+{
+  "human": {
+    "name": "Lowell Baker",
+    "email": "bakerr@yahoo.com"
+  },
+  "claude": {
+    "name": "Claude Code Assistant",
+    "email": "claude-code@anthropic.com"
+  },
+  "current": "human",
+  "last_updated": "2026-03-31T22:56:54Z"
+}
