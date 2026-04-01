@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 import uuid
 
@@ -7,6 +8,7 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from markupsafe import escape
 
 from app.config import get_connection
 from app.metadata.collector import collect_metadata
@@ -21,6 +23,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 _results: dict[str, tuple[float, ReportCard]] = {}
 _TTL = 1800.0
+_SAFE_DB_NAME = re.compile(r'^[\w\-\.]{1,128}$')
 
 
 def _prune():
@@ -52,7 +55,9 @@ async def list_databases_options(request: Request):
     cursor.execute("SELECT name FROM sys.databases WHERE state_desc = 'ONLINE' ORDER BY name")
     databases = [row[0] for row in cursor.fetchall()]
     conn.close()
-    options_html = "".join(f'<option value="{db}">{db}</option>' for db in databases)
+    options_html = "".join(
+        f'<option value="{escape(db)}">{escape(db)}</option>' for db in databases
+    )
     return HTMLResponse(options_html)
 
 
@@ -64,6 +69,8 @@ async def analyze(
     username: str = Form(...),
 ):
     _prune()
+    if not _SAFE_DB_NAME.match(database):
+        return HTMLResponse("<p>Invalid database name.</p>", status_code=400)
     profiles = extract_query_profiles(sql)
     real_tables = list({
         f"{t.schema_name}.{t.name}"
