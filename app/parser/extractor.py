@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import sqlglot
 from sqlglot import exp
-from app.models import QueryProfile, TableRef, Predicate, JoinDef, ColumnDef
 
-_COMPARISON_TYPES = (exp.EQ, exp.GT, exp.LT, exp.GTE, exp.LTE, exp.NEQ, exp.Like, exp.In)
+from app.models import JoinDef, Predicate, QueryProfile, TableRef
+
+_COMPARISON_TYPES = (exp.EQ, exp.GT, exp.LT, exp.GTE, exp.LTE, exp.NEQ, exp.Like)
 
 
 def extract_query_profiles(sql: str) -> list[QueryProfile]:
@@ -121,8 +123,9 @@ def _extract_joins(tree: exp.Expression) -> list[JoinDef]:
             continue
         on_clause = join.args.get("on")
         predicates = _predicates_from_expr(on_clause) if on_clause else []
+        join_type = " ".join(filter(None, [join.side, join.kind])) or "INNER"
         joins.append(JoinDef(
-            join_type=join.kind or "INNER",
+            join_type=join_type,
             left_table=from_name,
             right_table=join_table.name,
             predicates=predicates,

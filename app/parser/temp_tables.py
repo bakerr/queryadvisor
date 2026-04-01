@@ -1,6 +1,7 @@
 from __future__ import annotations
-import sqlglot
+
 from sqlglot import exp
+
 from app.models import ColumnDef
 
 
