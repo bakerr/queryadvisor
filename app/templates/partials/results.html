@@ -1,1 +1,24 @@
-<div>results</div>
+{% include "partials/report_card.html" %}
+
+<div class="view-toggle">
+    <button hx-get="/api/results/{{ request_id }}/list"
+            hx-target="#detail-panel"
+            hx-swap="innerHTML"
+            class="{% if view == 'list' %}active{% endif %}">
+        Findings List
+    </button>
+    <button hx-get="/api/results/{{ request_id }}/annotated"
+            hx-target="#detail-panel"
+            hx-swap="innerHTML"
+            class="{% if view == 'annotated' %}active{% endif %}">
+        Annotated SQL
+    </button>
+</div>
+
+<div id="detail-panel">
+    {% if view == 'list' %}
+        {% include "partials/findings_list.html" %}
+    {% else %}
+        {% include "partials/annotated_sql.html" %}
+    {% endif %}
+</div>

@@ -1,1 +1,15 @@
-<div>report</div>
+<div class="report-card">
+    <div class="overall-grade grade-{{ report_card.grade | lower }}">
+        <span class="grade-letter">{{ report_card.grade }}</span>
+        <span class="grade-score">{{ report_card.score }}/100</span>
+    </div>
+    <div class="category-scores">
+        {% for cs in report_card.category_scores %}
+        <div class="cat-score grade-{{ cs.grade | lower }}">
+            <span class="cat-name">{{ cs.category.value | title }}</span>
+            <span class="cat-grade">{{ cs.grade }}</span>
+            <span class="cat-score-num">{{ cs.score }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>

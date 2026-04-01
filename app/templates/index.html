@@ -1,1 +1,35 @@
-<!DOCTYPE html><html><head><title>QueryAdvisor</title></head><body><h1>QueryAdvisor</h1></body></html>
+{% extends "base.html" %}
+{% block content %}
+<form id="analyze-form"
+      hx-post="/api/analyze"
+      hx-target="#results"
+      hx-indicator="#spinner"
+      hx-swap="innerHTML">
+
+    <div class="form-row">
+        <label for="username">Your name:</label>
+        <input type="text" id="username" name="username" required placeholder="Jane Smith">
+    </div>
+
+    <div class="form-row">
+        <label for="database">Database:</label>
+        <select id="database" name="database"
+                hx-get="/api/databases/options"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+            <option value="">Loading...</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="sql">SQL Query:</label>
+        <textarea id="sql" name="sql" rows="16" required
+                  placeholder="Paste your T-SQL query here..."></textarea>
+    </div>
+
+    <button type="submit">Analyze Query</button>
+    <span id="spinner" class="htmx-indicator">Analyzing...</span>
+</form>
+
+<div id="results"></div>
+{% endblock %}

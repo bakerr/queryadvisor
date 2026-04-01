@@ -1,1 +1,25 @@
-<div>annotated</div>
+<div class="annotated-sql">
+    {% if not report_card.findings %}
+        <p class="no-findings">No issues found.</p>
+    {% else %}
+        <div class="annotation-legend">
+            <span class="severity-badge severity-critical">CRITICAL</span>
+            <span class="severity-badge severity-warning">WARNING</span>
+            <span class="severity-badge severity-info">INFO</span>
+        </div>
+        <div class="findings-as-annotations">
+            {% for finding in report_card.findings %}
+            <div class="annotation finding-{{ finding.severity.value }}">
+                <span class="severity-badge severity-{{ finding.severity.value }}">
+                    {{ finding.severity.value | upper }}
+                </span>
+                <strong>{{ finding.title }}</strong>
+                {% if finding.affected_sql %}
+                <code>{{ finding.affected_sql }}</code>
+                {% endif %}
+                <p>{{ finding.explanation }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

@@ -1,1 +1,23 @@
-<div>findings</div>
+{% if not report_card.findings %}
+    <div class="no-findings">No issues found. Grade A!</div>
+{% else %}
+    {% for category, findings in report_card.findings | groupby("category.value") %}
+    <section class="finding-group">
+        <h3>{{ category | title }} ({{ findings | list | length }})</h3>
+        {% for finding in findings %}
+        <div class="finding finding-{{ finding.severity.value }}">
+            <div class="finding-header">
+                <span class="severity-badge severity-{{ finding.severity.value }}">
+                    {{ finding.severity.value | upper }}
+                </span>
+                <strong>{{ finding.title }}</strong>
+            </div>
+            <p class="finding-explanation">{{ finding.explanation }}</p>
+            {% if finding.affected_sql %}
+            <code class="affected-sql">{{ finding.affected_sql }}</code>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endfor %}
+{% endif %}
