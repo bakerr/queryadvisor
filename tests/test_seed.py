@@ -73,6 +73,11 @@ class TestCreateDboTables:
         sql = self._all_sql(cursor)
         assert "IX_Customers_Email" in sql
 
+    def test_products_categoryid_index_created(self):
+        cursor = MagicMock()
+        sql = self._all_sql(cursor)
+        assert "IX_Products_CategoryID" in sql
+
     def test_orders_customerid_index_created(self):
         cursor = MagicMock()
         sql = self._all_sql(cursor)
@@ -94,10 +99,10 @@ class TestCreateDboTables:
         assert "IX_OrderItems_ProductID" in sql
 
     def test_all_ddl_is_idempotent(self):
-        """Every CREATE TABLE must be guarded by IF OBJECT_ID IS NULL."""
+        """Every CREATE TABLE must be guarded by IF OBJECT_ID(...) IS NULL."""
         from scripts.seed_db import _DBO_DDL
         for stmt in _DBO_DDL:
             if "CREATE TABLE" in stmt:
-                assert "IF OBJECT_ID" in stmt or "IF NOT EXISTS" in stmt, (
-                    f"DDL statement is not idempotent:\n{stmt[:120]}"
+                assert "IF OBJECT_ID" in stmt, (
+                    f"CREATE TABLE statement missing IF OBJECT_ID guard:\n{stmt[:120]}"
                 )
