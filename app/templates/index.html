@@ -16,6 +16,7 @@
         <select id="database" name="database"
                 hx-get="/api/databases/options"
                 hx-trigger="load"
+                hx-target="this"
                 hx-swap="innerHTML">
             <option value="">Loading...</option>
         </select>
