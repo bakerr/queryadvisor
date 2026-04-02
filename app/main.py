@@ -5,12 +5,13 @@ import time
 import uuid
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import escape
 
 from app.config import get_connection
+from app.exceptions import DatabaseConnectionError
 from app.metadata.collector import collect_metadata
 from app.models import ReportCard
 from app.parser.extractor import extract_query_profiles
@@ -18,6 +19,18 @@ from app.rules.engine import evaluate_rules
 from app.scoring.scorer import score_findings
 
 app = FastAPI(title="QueryAdvisor")
+
+
+@app.exception_handler(DatabaseConnectionError)
+async def database_connection_error_handler(
+    request: Request, exc: DatabaseConnectionError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": f"Database unavailable: '{exc.database}'"},
+    )
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -71,6 +84,12 @@ async def analyze(
     _prune()
     if not _SAFE_DB_NAME.match(database):
         return HTMLResponse("<p>Invalid database name.</p>", status_code=400)
+    # Validate DB connectivity before parsing. collect_metadata() early-returns
+    # with an empty MetadataBundle when there are no real tables (e.g., SELECT 1),
+    # bypassing its own get_connection() call. This ping ensures DatabaseConnectionError
+    # is always raised (and mapped to 503) for unreachable databases regardless of SQL content.
+    conn = get_connection(database)
+    conn.close()
     profiles = extract_query_profiles(sql)
     real_tables = list({
         f"{t.schema_name}.{t.name}"
