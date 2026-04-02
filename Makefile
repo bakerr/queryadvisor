@@ -1,4 +1,4 @@
-.PHONY: db-start db-stop db-status db-logs db-shell db-reset db-seed help
+.PHONY: db-start db-stop db-status db-logs db-shell db-reset db-seed browser-deps help
 
 # Load .env if it exists (provides MSSQL_SA_PASSWORD etc.)
 -include .env
@@ -33,6 +33,9 @@ db-reset: ## DESTRUCTIVE: stop container and wipe all data in ~/.queryadvisor/sq
 
 db-seed: ## Seed QueryAdvisorSample with sample schema and data (requires db-start)
 	uv run python scripts/seed_db.py
+
+browser-deps: ## Install Playwright Chromium browser binary
+	uv run playwright install chromium
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | \
