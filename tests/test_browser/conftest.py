@@ -36,19 +36,27 @@ def live_server():
     # Wait up to 15 seconds for the server to accept connections
     for _ in range(30):
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            with socket.create_connection(("127.0.0.1", port)):
                 break
         except OSError:
             time.sleep(0.5)
     else:
         proc.terminate()
-        proc.wait(timeout=5)
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
         pytest.fail("live_server did not start within 15 seconds")
 
     yield f"http://127.0.0.1:{port}"
 
     proc.terminate()
-    proc.wait(timeout=5)
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
 
 
 def pytest_collection_modifyitems(items: list) -> None:
