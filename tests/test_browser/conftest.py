@@ -11,7 +11,11 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
 def _load_dotenv() -> dict[str, str]:
-    """Load key=value pairs from .env at repo root, ignoring comments and blanks."""
+    """Load key=value pairs from .env at repo root, ignoring comments and blanks.
+
+    Strips matching surrounding single or double quotes from values.
+    Does not handle escaped quotes inside values (e.g. "it\\'s" stays as-is).
+    """
     env: dict[str, str] = {}
     dotenv = _REPO_ROOT / ".env"
     try:
@@ -21,7 +25,10 @@ def _load_dotenv() -> dict[str, str]:
                 continue
             if "=" in line:
                 key, _, value = line.partition("=")
-                env[key.strip()] = value.strip()
+                value = value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                    value = value[1:-1]
+                env[key.strip()] = value
     except FileNotFoundError:
         pass
     return env
