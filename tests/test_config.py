@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from app.config import build_connection_string
+from app.config import build_connection_string, get_connection
+from app.exceptions import DatabaseConnectionError
 
 
 def test_windows_auth_is_default():
@@ -79,3 +80,51 @@ def test_unknown_auth_method_falls_back_to_windows():
         conn_str = build_connection_string("mydb")
     assert "Trusted_Connection=yes" in conn_str
     assert "PWD=" not in conn_str
+
+
+def test_get_connection_raises_database_connection_error_on_pyodbc_failure():
+    """pyodbc.Error is caught and re-raised as DatabaseConnectionError."""
+    import pyodbc
+    with patch("app.config.pyodbc") as mock_pyodbc:
+        mock_pyodbc.Error = pyodbc.Error
+        mock_pyodbc.connect.side_effect = pyodbc.Error(
+            "08001",
+            "[08001] [Microsoft][ODBC Driver 18] "
+            "PWD=SuperSecret123; SERVER=localhost; (0) (SQLDriverConnect)",
+        )
+        env = {
+            "SQL_AUTH_METHOD": "sql",
+            "MSSQL_SA_PASSWORD": "SuperSecret123",
+            "SQL_SERVER_HOST": "localhost",
+            "ODBC_DRIVER": "ODBC Driver 18 for SQL Server",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            with pytest.raises(DatabaseConnectionError) as exc_info:
+                get_connection("mydb")
+    assert exc_info.value.database == "mydb"
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+
+
+def test_get_connection_exception_message_contains_no_credentials():
+    """The sanitized exception message must not contain password or connection string fragments."""
+    import pyodbc
+    with patch("app.config.pyodbc") as mock_pyodbc:
+        mock_pyodbc.Error = pyodbc.Error
+        mock_pyodbc.connect.side_effect = pyodbc.Error(
+            "08001",
+            "PWD=SuperSecret123; UID=sa; SERVER=10.0.0.1",
+        )
+        env = {
+            "SQL_AUTH_METHOD": "sql",
+            "MSSQL_SA_PASSWORD": "SuperSecret123",
+            "SQL_SERVER_HOST": "10.0.0.1",
+            "ODBC_DRIVER": "ODBC Driver 18 for SQL Server",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            with pytest.raises(DatabaseConnectionError) as exc_info:
+                get_connection("mydb")
+    msg = str(exc_info.value)
+    assert "SuperSecret123" not in msg
+    assert "10.0.0.1" not in msg
+    assert "mydb" in msg
